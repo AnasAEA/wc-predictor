@@ -1,0 +1,63 @@
+name: Update scores
+
+# Live scores want ~1-minutely refreshes near kickoffs, but GitHub throttles `schedule` crons to
+# roughly once every few hours — far too slow. So ONE run polls in a loop (every 1 min near kickoffs,
+# every 30 min in quiet hours) for ~5 hours, then relaunches itself.
+# The safety-net restarter lives in results-restart.yml (a SEPARATE workflow / concurrency group) so it can
+# only ever *start* a loop when none is running — it must not share this group, or cancel-in-progress would
+# let the every-15-min cron kill the healthy loop it's meant to protect.
+on:
+  workflow_dispatch:            # manual "Run workflow", the self-relaunch target, and the restarter's dispatch
+
+permissions:
+  contents: write
+  actions: write                # lets the run relaunch itself (workflow_dispatch is exempt from the GITHUB_TOKEN no-recursion rule)
+
+concurrency:
+  group: results
+  cancel-in-progress: true      # exactly one polling loop alive; a fresh manual/self dispatch replaces a stuck one
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350         # just under the 6h job cap; the loop budgets ~5h then relaunches
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }  # full history so the in-loop push can rebase cleanly over share-card commits
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Poll scores in a loop, then relaunch
+        env:
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "wc26-bot"
+          git config user.email "actions@users.noreply.github.com"
+          deadline=$(( $(date +%s) + 18000 ))     # ~5h of polling, then relaunch (keeps under the job timeout)
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            node scripts/fetch-results.mjs || echo "fetch error — will retry next loop"
+            # stage scores + heavy detail + photos + credited reports + per-match commentary, then commit if anything
+            # actually changed. `git add` first (not `git diff` on a path list) so brand-new commentary files count.
+            git add data/results.json data/details.json data/photos.json data/playerbio.json data/reports.json 2>/dev/null
+            [ -d data/commentary ] && git add data/commentary 2>/dev/null
+            if ! git diff --cached --quiet 2>/dev/null; then
+              git commit -m "scores: $(date -u +'%Y-%m-%d %H:%M UTC')"
+              # Self-healing push: data files are fully regenerated each loop, so on a rejected push we rebase
+              # preferring our fresh snapshot; if even that fails we abort + hard-resync to remote and let the next
+              # loop re-commit. This stops a concurrent push (e.g. a code commit) from wedging the loop in a
+              # half-finished rebase — the bug that froze scores at 20:14 last time.
+              git push 2>/dev/null \
+                || { git fetch origin main && git rebase -X theirs origin/main 2>/dev/null && git push 2>/dev/null; } \
+                || { git rebase --abort 2>/dev/null; git reset --hard origin/main; echo "push deferred — resynced, will retry next loop"; }
+            else
+              echo "no changes @ $(date -u +%H:%M) UTC"
+            fi
+            # adaptive cadence: poll every 1 min when a match is within [-1h, +3.5h] of kickoff, else every 30 min
+            near=$(node -e "const m=require('./data/matches.json').matches;const n=Date.now();process.stdout.write(m.some(x=>{const t=+new Date(x.utc);return n>t-3.6e6 && n<t+1.26e7})?'1':'0')")
+            [ "$near" = "1" ] && sleep 60 || sleep 1800
+          done
+          # Stop cleanly once the tournament is over (final is 2026-07-19) instead of relaunching forever.
+          if [ "$(date -u +%Y%m%d)" -gt "20260720" ]; then echo "tournament over — not relaunching"; exit 0; fi
+          echo "polling budget reached — relaunching the workflow"
+          gh workflow run results.yml || echo "self-dispatch failed; the restarter cron will restart it"

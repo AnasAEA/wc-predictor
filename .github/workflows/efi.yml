@@ -1,0 +1,40 @@
+name: Update EFI
+
+# FIFA's post-match Enhanced Football Intelligence reports (advanced data: official xG, in-contest possession,
+# phases of play, line breaks, ball progressions, defensive pressures, and per-player distance) parsed from the
+# public Match Report Hub PDFs into data/efi.json by scripts/fetch-efi.py. This is POST-MATCH data, so an
+# infrequent cron is plenty (GitHub throttles scheduled runs anyway). The browser only reads the baked JSON.
+on:
+  schedule:
+    - cron: "23 */2 * * *"     # every ~2h
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: efi
+  cancel-in-progress: true
+
+jobs:
+  efi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install --quiet pdfplumber
+      - name: Parse EFI reports, commit if changed
+        run: |
+          git config user.name "wc26-bot"
+          git config user.email "actions@users.noreply.github.com"
+          python3 scripts/fetch-efi.py || echo "efi parse error — skipping this run"
+          git add data/efi.json 2>/dev/null
+          if ! git diff --cached --quiet 2>/dev/null; then
+            git commit -m "efi: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push 2>/dev/null \
+              || { git fetch origin main && git rebase -X theirs origin/main 2>/dev/null && git push 2>/dev/null; } \
+              || { git rebase --abort 2>/dev/null; git reset --hard origin/main; echo "push deferred — resynced, will retry next run"; }
+          else
+            echo "no efi changes"
+          fi

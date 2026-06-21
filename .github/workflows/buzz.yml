@@ -1,0 +1,53 @@
+name: Update buzz
+
+# The "Pulse" tab's data: fan reactions (Reddit match threads) + press headlines (RSS), baked into
+# data/buzz.json by scripts/fetch-buzz.mjs. Buzz changes far slower than live scores, so a periodic cron
+# (every ~20 min; GitHub may throttle scheduled runs to ~hourly) is plenty.
+#
+# Fan reactions come from three sources, all optional/graceful:
+#  - Reddit (unauthenticated by default; may 403 from GitHub's datacenter IPs). Add a free Reddit "script" app's
+#    REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET to make it dependable via OAuth.
+#  - Mastodon: public hashtag timelines, no credentials needed — always runs.
+#  - Bluesky: keyword search needs a session, so add a free app password as BLUESKY_IDENTIFIER (your handle) +
+#    BLUESKY_APP_PASSWORD (Settings → App Passwords, no approval). Skipped when unset.
+# With none of the secrets set, the tab still runs on Mastodon reactions + press headlines (RSS, reliable).
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: buzz
+  cancel-in-progress: true
+
+jobs:
+  buzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Fetch buzz, commit if changed
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          BLUESKY_IDENTIFIER: ${{ secrets.BLUESKY_IDENTIFIER }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          git config user.name "wc26-bot"
+          git config user.email "actions@users.noreply.github.com"
+          node scripts/fetch-buzz.mjs || echo "buzz fetch error — skipping this run"
+          git add data/buzz.json 2>/dev/null
+          if ! git diff --cached --quiet 2>/dev/null; then
+            git commit -m "buzz: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            # self-healing push: buzz.json is regenerated each run, so rebase preferring our fresh copy on conflict
+            git push 2>/dev/null \
+              || { git fetch origin main && git rebase -X theirs origin/main 2>/dev/null && git push 2>/dev/null; } \
+              || { git rebase --abort 2>/dev/null; git reset --hard origin/main; echo "push deferred — resynced, will retry next run"; }
+          else
+            echo "no buzz changes"
+          fi

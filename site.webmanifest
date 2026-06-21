@@ -1,0 +1,15 @@
+{
+  "name": "FIFA World Cup 2026 — Live scores & predictor",
+  "short_name": "World Cup 26",
+  "description": "Live scores, lineups, match stats, the Golden Boot race and a full bracket predictor — every match in your timezone.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#FAFBF9",
+  "theme_color": "#FAFBF9",
+  "categories": ["sports"],
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

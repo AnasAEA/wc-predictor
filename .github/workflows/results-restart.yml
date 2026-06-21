@@ -1,0 +1,37 @@
+name: Restart scores loop (safety net)
+
+# The "Update scores" workflow is a self-relaunching ~5h polling loop. If that relaunch chain ever breaks
+# (a run errors out, a dispatch fails), nothing would restart it. This cron is that safety net — but it lives
+# in its OWN concurrency group and only *dispatches* the loop when none is already running, so it can never
+# cancel a healthy loop (the bug we had when the restarter shared "Update scores"'s cancel-in-progress group).
+on:
+  schedule:
+    - cron: "*/15 * * * *"     # GitHub throttles this heavily to ~hourly — fine, it's only a backstop
+  workflow_dispatch:
+
+permissions:
+  actions: write               # to dispatch results.yml
+
+concurrency:
+  group: results-restart
+  cancel-in-progress: true
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch the scores loop only if none is running
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Don't keep the loop alive past the tournament (final 2026-07-19).
+          if [ "$(date -u +%Y%m%d)" -gt "20260720" ]; then echo "tournament over — no-op"; exit 0; fi
+          active=$(gh api "repos/$REPO/actions/workflows/results.yml/runs?per_page=20" \
+            --jq '[.workflow_runs[] | select(.status=="in_progress" or .status=="queued")] | length' 2>/dev/null || echo 0)
+          if [ "${active:-0}" -gt 0 ]; then
+            echo "scores loop already running ($active) — no-op"
+          else
+            echo "no scores loop running — dispatching one"
+            gh workflow run results.yml || echo "dispatch failed; will retry next cron"
+          fi

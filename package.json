@@ -1,0 +1,14 @@
+{
+  "name": "wc26-tools",
+  "private": true,
+  "type": "module",
+  "description": "Build-time tools for the WC·26 static site (share-card image generation). The site itself stays dependency-free.",
+  "scripts": {
+    "test": "node --test",
+    "share-cards": "node scripts/make-share-cards.mjs"
+  },
+  "devDependencies": {
+    "satori": "^0.12.0",
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}

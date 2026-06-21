@@ -1,0 +1,13 @@
+# OS cruft
+.DS_Store
+
+# source audio — the raw originals are re-encoded into assets/music/; don't commit the 45MB raw set
+music new/
+
+# Local tooling config (machine-specific, not part of the site)
+.claude/
+CLAUDE.md
+
+# Node (only used by the data scripts in CI; no deps committed)
+node_modules/
+npm-debug.log*

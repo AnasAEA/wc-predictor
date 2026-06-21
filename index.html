@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>FIFA World Cup 2026</title>
+<meta name="description" content="Your FIFA World Cup 2026 companion: live scores, lineups, formation pitches & match stats, a win probability and predicted score for every match, group tables, the Golden Boot race, all 48 squads to browse, and your own knockout predictions to the champion. All 104 matches in your timezone, free.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FIFA World Cup 2026 Companion">
+<meta property="og:url" content="https://lavyagarg240294.github.io/wc26/">
+<meta property="og:title" content="FIFA World Cup 2026: live, predicted, on your clock">
+<meta property="og:description" content="Live scores, lineups & stats, a win probability and predicted score for every match, follow any game live, browse all 48 squads, and call your own knockout predictions to the champion. 104 matches in your timezone, free, no sign-up.">
+<meta property="og:image" content="https://lavyagarg240294.github.io/wc26/assets/og.png?v=146">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="FIFA World Cup 2026: live scores, lineups, stats, a win probability and predicted score for every match, and your own knockout predictions, in your timezone">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FIFA World Cup 2026: live, predicted, on your clock">
+<meta name="twitter:description" content="Live scores, lineups & stats, a win probability and predicted score for every match, follow any game live, browse all 48 squads, and call your own knockout predictions to the champion. 104 matches in your timezone, free, no sign-up.">
+<meta name="twitter:image" content="https://lavyagarg240294.github.io/wc26/assets/og.png?v=146">
+<meta name="theme-color" content="#FAFBF9">
+<script>try{var _dk=localStorage.getItem('wc26.theme'),_th=(_dk==='dark'||(!_dk&&matchMedia('(prefers-color-scheme:dark)').matches))?'dark':'light';document.documentElement.dataset.theme=_th;var m=document.querySelector('meta[name=theme-color]');if(m)m.content=_th==='dark'?'#0E1822':'#0BA360';}catch(e){}try{document.documentElement.classList.add('booting');setTimeout(function(){document.documentElement.classList.remove('booting');},1600);}catch(e){}</script>
+<!-- Privacy-friendly, cookieless analytics (GoatCounter) — OFF by default (no third-party request, no tracking).
+     To enable: create a free GoatCounter site and set ANALYTICS_URL to its /count endpoint. No cookies, no PII. -->
+<script>
+  window.ANALYTICS_URL = "";  /* e.g. "https://wc26.goatcounter.com/count" */
+  if (window.ANALYTICS_URL) { var g=document.createElement('script'); g.async=true; g.src='//gc.zgo.at/count.js'; g.setAttribute('data-goatcounter', window.ANALYTICS_URL); document.head.appendChild(g); }
+</script>
+<link rel="manifest" href="site.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="World Cup 26">
+<meta name="application-name" content="World Cup 26">
+<link rel="stylesheet" href="assets/fonts.css?v=113">
+<link rel="stylesheet" href="styles.css?v=329">
+<link rel="icon" href="assets/mark.svg">
+<link rel="icon" type="image/png" href="assets/icon-32.png" sizes="32x32">
+</head>
+<body>
+<h1 class="vh">FIFA World Cup 2026</h1>
+
+<div id="bg" aria-hidden="true"><span></span><span></span><span></span></div>
+<div id="themeSweep" aria-hidden="true"></div>
+<div id="liveAnnounce" class="vh" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<header class="topbar">
+  <a class="wordmark" href="#matches" data-nav="matches" aria-label="FIFA World Cup 2026">
+    <svg class="wm-mark" viewBox="0 0 100 100" width="29" height="29" role="img" aria-label="World Cup 26"><defs><radialGradient id="hmg" cx="50%" cy="40%" r="72%"><stop offset="0" stop-color="#12463A"/><stop offset=".62" stop-color="#0C342C"/><stop offset="1" stop-color="#06141A"/></radialGradient><linearGradient id="hmgold" gradientUnits="userSpaceOnUse" x1="50" y1="22" x2="50" y2="78"><stop offset="0" stop-color="#F6D679"/><stop offset=".5" stop-color="#E8B931"/><stop offset="1" stop-color="#C99A1F"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#hmg)"/><g fill="none" stroke="url(#hmgold)" stroke-width="6" stroke-linecap="round"><line x1="8" y1="50" x2="92" y2="50"/><circle cx="50" cy="50" r="24"/></g><circle cx="50" cy="50" r="5.6" fill="url(#hmgold)"/></svg>
+    <span class="wm-text"><span class="wm-fifa">FIFA</span> WC&nbsp;<b>26</b></span>
+  </a>
+  <div class="topbar-right">
+    <button class="chip chip-icon" id="searchChip" title="Search (⌘K)" aria-label="Search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    </button>
+    <button class="chip chip-icon" id="darkChip" title="Dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button class="chip chip-icon" id="musicChip" title="Stadium mix" aria-label="Toggle match-day music" aria-pressed="false">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </button>
+    <button class="chip chip-icon" id="settingsChip" title="Settings" aria-label="Settings">
+      <svg class="ic-music" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button class="chip chip-team" id="teamChip" title="Pick your team">
+      <span id="teamChipFlag">⚽</span><span id="teamChipName">Pick a team</span>
+    </button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="Sections">
+  <button class="tab is-active" data-nav="matches">Matches</button>
+  <button class="tab" data-nav="groups">Tables</button>
+  <button class="tab" data-nav="stats">Stats</button>
+  <button class="tab" data-nav="sim">Predict</button>
+  <button class="tab" data-nav="teams">Teams</button>
+  <button class="tab" data-nav="players">Players</button>
+  <button class="tab" data-nav="pulse">News</button>
+  <span class="tab-ink" id="tabInk" aria-hidden="true"></span>
+</nav>
+
+<div class="ticker" id="ticker" hidden aria-hidden="true"><div class="ticker-track" id="tickerTrack"></div></div>
+
+<div id="bootLoading" class="boot-loading" aria-hidden="true"><span class="boot-spin"></span></div>
+
+<main id="main">
+  <section class="view" id="view-matches"></section>
+  <section class="view" id="view-teams" hidden></section>
+  <section class="view" id="view-players" hidden></section>
+  <section class="view" id="view-groups" hidden></section>
+  <section class="view" id="view-sim" hidden></section>
+  <section class="view" id="view-stats" hidden></section>
+  <section class="view" id="view-pulse" hidden></section>
+</main>
+
+<footer class="foot">
+  <span id="updatedLabel">Schedule loaded</span>
+  <button class="foot-refresh" id="refreshBtn" data-refresh title="Refresh scores now" aria-label="Refresh scores">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+  </button>
+  <span class="foot-dot">·</span>
+  <button class="foot-about" id="aboutSiteBtn">About</button>
+  <span class="foot-dot">·</span>
+  <span>Unofficial fan project, times in <button class="foot-tz" id="footTz" title="Change your timezone"></button></span>
+  <span class="foot-dot">·</span>
+  <span class="foot-build" id="buildTag"></span>
+  <button class="info-i foot-devi" id="devStoryBtn" type="button" aria-label="How this was built">i</button>
+</footer>
+
+<!-- Settings -->
+<dialog id="settingsDialog" class="sheet" aria-label="Settings">
+  <div class="sheet-head"><h3>Settings</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="settingsBody">
+    <button class="set-row" id="themeToggle" aria-pressed="false">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      <span class="set-tx"><b>Dark mode</b><small>Easier on the eyes at night</small></span>
+      <span class="set-state" id="themeState">Off</span>
+    </button>
+    <div class="set-group">Sounds</div>
+    <button class="set-row" id="musicToggle" aria-pressed="false">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span>
+      <span class="set-tx"><b>Stadium mix</b><small id="musicSub">Royalty-free match-day playlist, shuffles as you browse</small></span>
+      <span class="set-state" id="musicState">Off</span>
+    </button>
+    <button class="set-row" id="hornToggle" aria-pressed="false">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span>
+      <span class="set-tx"><b>Goal horn</b><small>A stadium horn when a goal goes in</small></span>
+      <span class="set-state" id="hornState">Off</span>
+    </button>
+    <div class="set-group">General</div>
+    <button class="set-row" id="notifyToggle" aria-pressed="false">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+      <span class="set-tx"><b>Match alerts</b><small>Goals &amp; kickoffs for your team, while this tab is open</small></span>
+      <span class="set-state" id="notifyState">Off</span>
+    </button>
+    <button class="set-row" id="liteToggle" aria-pressed="false">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10 10 0 0 1-10 10A10 10 0 0 1 2 12 10 10 0 0 1 12 2"/><path d="M12 6v6l3 2"/><path d="M16 2l4 2-2 4"/></svg></span>
+      <span class="set-tx"><b>Data saver</b><small>Skip player photos on slow connections</small></span>
+      <span class="set-state" id="liteState">Off</span>
+    </button>
+    <button class="set-row" id="tzRow">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <span class="set-tx"><b>Timezone</b><small>How kickoff times are shown</small></span>
+      <span class="set-state" id="tzState">Auto</span>
+    </button>
+    <div class="set-group">Calendar</div>
+    <button class="set-row" id="calSubscribe">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/></svg></span>
+      <span class="set-tx"><b>Subscribe to all matches</b><small>Live, auto-updating feed of all 104 matches, best on phone</small></span>
+      <span class="set-state">webcal ›</span>
+    </button>
+    <button class="set-row" id="calDownload">
+      <span class="set-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+      <span class="set-tx"><b>Download all matches</b><small>A one-time .ics file, works on any device</small></span>
+      <span class="set-state">.ics ›</span>
+    </button>
+    <p class="set-note">Tip: open a team for just their matches, or a match to add a single game.</p>
+  </div>
+</dialog>
+
+<!-- Timezone picker -->
+<dialog id="tzDialog" class="sheet" aria-label="Match times">
+  <div class="sheet-head"><h3>Match times in…</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="tzList"></div>
+</dialog>
+
+<!-- Match detail -->
+<dialog id="matchDialog" class="sheet" aria-labelledby="matchTitle">
+  <div class="sheet-head"><h3 id="matchTitle">Match</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="matchBody"></div>
+</dialog>
+
+<!-- Team detail sheet (any team) -->
+<dialog id="teamSheet" class="sheet" aria-labelledby="teamSheetTitle">
+  <div class="sheet-head"><h3 id="teamSheetTitle">Team</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="teamSheetBody"></div>
+</dialog>
+
+<!-- Global search -->
+<dialog id="searchDialog" class="sheet" aria-label="Search">
+  <div class="sheet-head"><h3>Search</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="search-field">
+    <input class="team-search" id="searchInput" type="search" placeholder="Teams, players, matches…" aria-label="Search teams, players and matches" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <span class="search-roll" id="searchRoll" aria-hidden="true">Try <b>Brazil</b></span>
+  </div>
+  <div class="sheet-body" id="searchResults"></div>
+</dialog>
+
+<!-- Team picker -->
+<dialog id="teamDialog" class="sheet" aria-label="Pick your team">
+  <div class="sheet-head"><h3>Your team</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <input class="team-search" id="teamSearch" type="search" placeholder="Search 48 teams…" autocomplete="off">
+  <div class="sheet-body team-grid" id="teamList"></div>
+  <button class="team-clear" id="teamClear">Follow no team</button>
+</dialog>
+
+<button id="jumpNow" class="jump-now" hidden aria-label="Jump to today">
+  <span class="jn-dot" aria-hidden="true"></span><span id="jnLabel">Today</span>
+</button>
+
+<button id="updatePill" class="update-pill" hidden aria-label="Refresh for the latest version">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+  New version: tap to refresh
+</button>
+
+<!-- Player profile -->
+<dialog id="playerDialog" class="sheet sheet-player" aria-labelledby="playerTitle">
+  <div class="sheet-head"><h3 id="playerTitle">Player</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="playerBody"></div>
+</dialog>
+
+
+<!-- About the tournament -->
+<dialog id="aboutDialog" class="sheet" aria-labelledby="aboutTitle">
+  <div class="sheet-head"><h3 id="aboutTitle">World Cup 2026</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body">
+    <p class="about-lead">The <b>biggest World Cup ever</b>, and the first hosted by three nations.</p>
+    <div class="about-tiles">
+      <div><b>48</b><span>teams</span></div><div><b>104</b><span>matches</span></div>
+      <div><b>16</b><span>host cities</span></div><div><b>3</b><span>countries</span></div>
+    </div>
+    <div class="eyebrow">How it works</div>
+    <ol class="about-steps">
+      <li><b>Group stage</b>: 12 groups of 4; every team plays 3 games.</li>
+      <li><b>Into the Round of 32</b>: the top 2 of each group (24 teams) <i>plus</i> the 8 best third-placed teams of the 12 go through.</li>
+      <li><b>Knockouts</b>: single elimination from there. Round of 16 → Quarter-finals → Semi-finals → <b>Final</b>.</li>
+    </ol>
+    <div class="eyebrow">Hosts &amp; key dates</div>
+    <p class="about-p">Played across the <b>USA, Canada &amp; Mexico</b>. It kicks off <b>June 11</b> at the Estadio Azteca in Mexico City (the first ground to host three World Cups) and ends with the <b>final on July 19</b> at MetLife Stadium, New York/New Jersey.</p>
+    <p class="sim-ko-hint">Scores, the live group tables and the knockout picture on this site fill in live as games are played.</p>
+  </div>
+</dialog>
+
+<!-- Last World Cup (Qatar 2022) results reference -->
+<dialog id="wc22Dialog" class="sheet" aria-labelledby="wc22Title">
+  <div class="sheet-head"><h3 id="wc22Title">Qatar 2022 · full results</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="wc22Body"></div>
+</dialog>
+
+<!-- About this project -->
+<dialog id="aboutSiteDialog" class="sheet" aria-labelledby="aboutSiteTitle">
+  <div class="sheet-head"><h3 id="aboutSiteTitle">About this project</h3><button class="sheet-x" data-close aria-label="Close">✕</button></div>
+  <div class="sheet-body">
+    <svg class="about-site-mark" viewBox="0 0 100 100" width="54" height="54" role="img" aria-label="World Cup 26"><defs><radialGradient id="asg" cx="50%" cy="40%" r="72%"><stop offset="0" stop-color="#12463A"/><stop offset=".62" stop-color="#0C342C"/><stop offset="1" stop-color="#06141A"/></radialGradient><linearGradient id="asgold" gradientUnits="userSpaceOnUse" x1="50" y1="22" x2="50" y2="78"><stop offset="0" stop-color="#F6D679"/><stop offset=".5" stop-color="#E8B931"/><stop offset="1" stop-color="#C99A1F"/></linearGradient></defs><rect width="100" height="100" rx="20" fill="url(#asg)"/><g fill="none" stroke="url(#asgold)" stroke-width="6" stroke-linecap="round"><line x1="8" y1="50" x2="92" y2="50"/><circle cx="50" cy="50" r="24"/></g><circle cx="50" cy="50" r="5.6" fill="url(#asgold)"/></svg>
+    <p class="about-lead">A free, open <b>fan-made companion</b> for the 2026 World Cup: all 104 matches in your timezone, live, with no ads and no sign-up.</p>
+
+    <div class="eyebrow">Why you'd use it</div>
+    <ul class="about-list">
+      <li>All <b>104 matches in your timezone</b>, with a live countdown and a one-tap <b>calendar export</b>, so a kickoff never sneaks past you</li>
+      <li>Browse <b>all 48 nations</b>: squads (tap a player for their profile — photo, <b>age, height, weight</b>, club, caps and match log), form, matches and a <b>playing-style</b> read for each, and make one your <b>favourite</b> so the whole app takes on its colours and projected <b>route to the final</b></li>
+      <li><b>Compare</b> any two players or any two teams head-to-head — form, strength, playing style and pedigree, with the model's odds if the two teams met</li>
+      <li>Every match carries a <b>win probability and a predicted scoreline</b> from a transparent model, which flags the factors moving the call when they stand out</li>
+      <li><b>Open any match</b> for the full picture, live or finished: a team-coloured scoreboard that <b>refreshes in place</b>, the <b>win probability</b> leading while it's live, <b>match stars</b> with full-size player shots, <b>live commentary</b>, the <b>goal timeline, line-ups on a formation pitch, stats, reports</b> and <b>FIFA's official deep analysis</b> (expected goals, distance covered, heatmaps)</li>
+      <li>A full <b>knockout predictor</b>: see the live <b>projected Round of 32 "as it stands"</b> up top, then order the groups, pick the best third-placed teams, and play your way to a champion across up to <b>three saved scenarios</b>, each with its own <b>path to glory</b></li>
+      <li>The whole <b>qualification picture and tournament stats</b>: the <b>Tables</b> tab with live group tables, the best-third race and a projected Round of 32; the <b>Golden Boot</b> and team leaderboards; <b>all-time World Cup records</b> (tracked live as 2026 players close in); and the full <b>FIFA World Ranking</b></li>
+      <li>The <b>latest headlines</b> from football desks worldwide, plus install as an <b>app</b>, <b>offline</b> support, light &amp; dark, and a quick <b>search</b> (⌘K) for any team, player or match</li>
+    </ul>
+
+    <div class="eyebrow">The prediction model</div>
+    <p class="about-p">Win probabilities come from a <b>Dixon-Coles</b> scoring model. Each side carries a strength rating: an Elo that updates after every result and leans on <b>official expected goals</b>, not just the final score. That gets refined by an <b>attack-versus-defence</b> read of how the two teams actually play, by <b>home advantage</b> for the host nations, and, late in the groups, by <b>what each side still needs to qualify</b>. It's tuned to football's history, never to this tournament's own results, and it surfaces what's behind a call when there's a factor worth flagging.</p>
+
+    <div class="eyebrow">How it works</div>
+    <p class="about-p">It's a single static page with no app server. Scores and data are refreshed by automated jobs that publish plain JSON the page reads, so <b>your browser never calls a sports API directly</b> and no keys are ever exposed. Kickoff times convert to your device's clock automatically.</p>
+
+    <div class="eyebrow">Your privacy</div>
+    <p class="about-p"><b>No tracking, no cookies, no accounts.</b> Analytics are off by default. Your team, timezone and saved predictions stay on your device.</p>
+
+    <div class="eyebrow">Sources & credits</div>
+    <p class="about-p">Schedule from <b>openfootball</b> (public domain); live scores, line-ups, stats, reports & commentary from <b>FIFA</b> and <b>ESPN</b>; deep-analysis metrics from <b>FIFA's post-match Enhanced Football Intelligence</b>; squads from <b>official FIFA squad lists</b>; headlines from leading football desks (<b>Guardian, BBC, ESPN, France 24, Al Jazeera, DW</b>); country flags are <b>bundled SVGs</b> (flagcdn); country outlines from <b>Natural Earth</b> (public domain) and populations from the <b>World Bank</b>; background music is royalty-free. Football data and team names belong to their respective owners.</p>
+
+    <div class="eyebrow">Open & free</div>
+    <p class="about-p">A solo, open, <b>no-build</b> project. <a href="https://github.com/lavyagarg240294/wc26" target="_blank" rel="noopener noreferrer">View the source on GitHub ↗</a>. Spotted a bug or have an idea? <a href="https://github.com/lavyagarg240294/wc26/issues" target="_blank" rel="noopener noreferrer">Open an issue ↗</a>.</p>
+
+    <details class="about-tech" id="aboutTech">
+      <summary>How this was built <span class="about-tech-hint">the technical story</span><span class="about-tech-chev" aria-hidden="true">▾</span></summary>
+      <div class="about-tech-body">
+        <div class="eyebrow">No build step</div>
+        <p class="about-p">The whole app is one <code>index.html</code>, one <code>styles.css</code> and one <code>app.js</code> — <b>plain HTML, CSS and JavaScript</b>, no framework, no bundler, no server. Edit a file, refresh the page. It loads as a single static page from a CDN, so it's quick anywhere and trivial to host.</p>
+
+        <div class="eyebrow">The data pipeline</div>
+        <p class="about-p"><b>GitHub Actions do the fetching, not your browser.</b> On a schedule, jobs pull from public sources — <b>openfootball</b> for the schedule, <b>FIFA</b> and <b>ESPN</b> for live scores, line-ups, stats and commentary, FIFA's post-match <b>Enhanced Football Intelligence</b> PDFs for the deep analysis — and bake the results into plain JSON committed to the repo. The page only ever reads that JSON, so <b>no sports API is ever called from your device and no keys are exposed</b>.</p>
+
+        <div class="eyebrow">Built to work offline</div>
+        <p class="about-p">A service worker caches the shell so it keeps working on a plane or a dodgy connection, while staying <b>network-first</b> for code and scores — so you get fresh data when you're online and never get stuck on a stale build.</p>
+
+        <div class="eyebrow">Built in the open</div>
+        <p class="about-p">Shipped iteratively, one small build at a time — you're on <b id="devStoryBuild">build —</b>. Written by hand with an AI pair-programmer, every change reviewed and verified in a live preview before it went out.</p>
+      </div>
+    </details>
+
+    <p class="about-disclaimer">An unofficial fan project, not affiliated with, endorsed by, or sponsored by FIFA or any football body. “World Cup” and related marks belong to their owners.</p>
+    <p class="sim-ko-hint">Tip: press <b>⌘K</b> or <b>/</b> to search teams, players & matches, and tap any team to make it yours.</p>
+  </div>
+</dialog>
+
+<!-- First-launch welcome / onboarding -->
+<dialog id="welcomeDialog" class="sheet welcome-sheet" aria-labelledby="welcomeTitle">
+  <div class="sheet-body welcome">
+    <svg class="welcome-mark" width="58" height="58" viewBox="0 0 100 100" role="img" aria-label="World Cup 26">
+      <defs>
+        <radialGradient id="wmg" cx="50%" cy="40%" r="72%"><stop offset="0" stop-color="#12463A"/><stop offset=".62" stop-color="#0C342C"/><stop offset="1" stop-color="#06141A"/></radialGradient>
+        <linearGradient id="wmgold" gradientUnits="userSpaceOnUse" x1="50" y1="22" x2="50" y2="78"><stop offset="0" stop-color="#F6D679"/><stop offset=".5" stop-color="#E8B931"/><stop offset="1" stop-color="#C99A1F"/></linearGradient>
+      </defs>
+      <rect width="100" height="100" rx="24" fill="url(#wmg)"/>
+      <g fill="none" stroke="url(#wmgold)" stroke-width="6" stroke-linecap="round">
+        <circle class="wm-circle" cx="50" cy="50" r="24"/>
+        <line class="wm-line" x1="8" y1="50" x2="92" y2="50"/>
+      </g>
+      <circle class="wm-spot" cx="50" cy="50" r="5.6" fill="url(#wmgold)"/>
+    </svg>
+    <h3 id="welcomeTitle">Your World Cup, in one page</h3>
+    <p class="welcome-lead">Live scores, lineups, stats and win odds for all 104 matches, plus every squad and player to explore. Free, no account needed.</p>
+    <div class="welcome-pts">
+      <div class="welcome-pt">
+        <span class="welcome-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3.5 2"/></svg></span>
+        <div class="welcome-pt-tx"><b>In your timezone</b><small>Every kickoff on your local clock, auto-detected as <b id="welcomeTz">your local time</b>.</small></div>
+      </div>
+      <div class="welcome-pt">
+        <span class="welcome-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2.6 14.7 8.3 21 9.2 16.5 13.6 17.6 19.8 12 16.9 6.4 19.8 7.5 13.6 3 9.2 9.3 8.3"/></svg></span>
+        <div class="welcome-pt-tx"><b>Make it your team</b><small>Pick a side and the whole app takes on its colours, fixtures and <b>route to the final</b>.</small></div>
+      </div>
+      <div class="welcome-pt">
+        <span class="welcome-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 9l2.85 2.07-1.09 3.36h-3.52L9.15 11.07z"/><path d="M12 9V4.5M14.85 11.07l3.7-1.3M13.76 14.43l1.8 3.1M10.24 14.43l-1.8 3.1M9.15 11.07l-3.7-1.3"/></svg></span>
+        <div class="welcome-pt-tx"><b>Follow it live</b><small>Open any match for a score that <b>refreshes in place</b>, the key moments, live commentary and a <b>win probability</b> as it unfolds.</small></div>
+      </div>
+      <div class="welcome-pt">
+        <span class="welcome-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v4.5a5 5 0 0 1-10 0z"/><path d="M7 6.3H4.6A2.2 2.2 0 0 0 7 8.6M17 6.3h2.4A2.2 2.2 0 0 1 17 8.6M12 13.5v2.8M9.5 19.5h5M10 16.3h4"/></svg></span>
+        <div class="welcome-pt-tx"><b>Predict the knockouts</b><small>Build up to three <b>scenarios</b> from the round of 32 to a champion, each with its path to glory.</small></div>
+      </div>
+    </div>
+    <div class="welcome-actions">
+      <button class="btn" id="welcomePick">★ Pick my team</button>
+      <button class="btn ghost" id="welcomeGo">Explore the site</button>
+    </div>
+    <p class="welcome-foot">No ads · no tracking · open-source · <em class="welcome-hint">seven is a meaningful number.</em></p>
+  </div>
+</dialog>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+<audio id="bgm" preload="none"></audio>
+
+<script src="app.js?v=329"></script>
+</body>
+</html>

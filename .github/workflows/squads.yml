@@ -1,0 +1,38 @@
+name: Update squads
+
+on:
+  workflow_dispatch:        # run manually from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: squads             # one squads run at a time; a fresh dispatch replaces a stale/stuck one
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history so a rejected push can rebase cleanly over a concurrent scores commit
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Fetch squads
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+        run: node scripts/fetch-squads.mjs
+      - name: Commit if changed
+        run: |
+          if ! git diff --quiet data/squads.json 2>/dev/null; then
+            git config user.name "wc26-bot"
+            git config user.email "actions@users.noreply.github.com"
+            git add data/squads.json
+            git commit -m "squads: $(date -u +'%Y-%m-%d')"
+            # self-healing push: the scores loop pushes often, so rebase our squads commit over any new commits
+            git push 2>/dev/null \
+              || { git fetch origin main && git rebase origin/main 2>/dev/null && git push 2>/dev/null; } \
+              || { git rebase --abort 2>/dev/null; echo "push deferred — re-run if needed"; exit 0; }
+          else
+            echo "No changes."
+          fi

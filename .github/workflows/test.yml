@@ -1,0 +1,32 @@
+name: Tests
+# Runs the dependency-free data-integrity + smoke tests on every push/PR, so a bad data commit
+# (corrupt JSON, orphaned id, split leak, missing flag) fails here instead of reaching visitors.
+on:
+  # static data + code only — not the every-minute results.json/details.json churn (the suite still
+  # asserts on those whenever it runs; the writer that produces them is covered by its own parse test).
+  push:
+    paths:
+      - "data/matches.json"
+      - "data/teams.json"
+      - "data/squads.json"
+      - "assets/flags/**"
+      - "app.js"
+      - "scripts/**"
+      - "test/**"
+      - "site.webmanifest"
+      - "package.json"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: node --test
