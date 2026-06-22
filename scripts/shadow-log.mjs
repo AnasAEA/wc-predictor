@@ -17,11 +17,14 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { buildState } from "../model/predict.mjs";
 import { shin } from "../betting/devig.mjs";
-import { modelEV, modelWinProb, settle, clv } from "../betting/clv.mjs";
+import { modelWinProb, settle, clv } from "../betting/clv.mjs";
+import { evaluate, DEFAULT_CONFIG } from "../betting/value_engine.mjs";
+import { calibrate1x2 } from "../model/calibrate.mjs";
 
-const EV_THRESHOLD = Number(process.env.SHADOW_EV_THRESHOLD || 0.03); // log a signal at ≥3% model EV
+const EV_THRESHOLD = Number(process.env.SHADOW_EV_THRESHOLD || DEFAULT_CONFIG.minEV); // log a signal at ≥3% model EV
 const CLOSE_WINDOW_MIN = Number(process.env.CLOSE_WINDOW_MIN || 20);
 const SHARP_PREF = ["pinnacle", "betfair_ex_eu", "betfair_ex_uk", "betfair"];
+const CONFIG = { ...DEFAULT_CONFIG, bankroll: Number(process.env.BANKROLL || DEFAULT_CONFIG.bankroll) };
 const OUT = new URL("../data/bet_log.json", import.meta.url);
 const J = p => JSON.parse(readFileSync(new URL(p, import.meta.url), "utf8"));
 
@@ -30,6 +33,11 @@ const fixtures = J("../data/matches.json").matches;
 const results = J("../data/results.json").matches;
 const efi = (() => { try { return J("../data/efi.json").matches || {}; } catch { return {}; } })();
 const odds = existsSync(new URL("../data/odds.json", import.meta.url)) ? J("../data/odds.json") : { matches: {} };
+
+// calibration: apply ONLY when the gate has opened (status === "active"); otherwise fall back to raw
+const calFile = existsSync(new URL("../data/calibration.json", import.meta.url)) ? J("../data/calibration.json") : null;
+const calActive = calFile?.status === "active";
+const cal1x2 = calActive ? calFile.markets?.["1x2"] : null;
 
 const state = buildState({ teams, fixtures, results, efi });
 const log = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : { updated: null, entries: {} };
@@ -71,18 +79,27 @@ for (const [id, rec] of Object.entries(odds.matches)) {
   // 1+2) only predict/scan while the match is upcoming (we need a pre-match forecast)
   if (book && !started && !isFT) {
     const pred = state.predict(fx); if (!pred) continue; scanned++;
+    const cal1x2Probs = cal1x2 ? calibrate1x2(cal1x2, { h: pred.wp.h, d: pred.wp.d, a: pred.wp.a }) : null;
     const nearClose = +new Date(rec.commence) - now <= CLOSE_WINDOW_MIN * 60000;
     for (const c of candidates(book, sharp)) {
-      const ev = modelEV(pred.cells, c.market, c.line, c.selection, c.odds);
+      // model probability of THIS selection — calibrated for 1X2 when the gate is open, else raw
+      const rawProb = modelWinProb(pred.cells, c.market, c.line, c.selection);
+      const calProb = c.market === "1x2" && cal1x2Probs ? cal1x2Probs[c.selection === "home" ? "h" : c.selection === "draw" ? "d" : "a"] : rawProb;
+      // EV/Kelly/stake: 1X2 uses the (calibrated) selection prob; line markets use the score-cell distribution
+      const ve = c.market === "1x2"
+        ? evaluate({ market: "1x2", line: c.line, selection: c.selection, odds: c.odds, p: calProb, config: CONFIG })
+        : evaluate({ market: c.market, line: c.line, selection: c.selection, odds: c.odds, cells: pred.cells, config: CONFIG });
+      const ev = ve.ev;
       const k = key(id, c.market, c.line, c.selection);
       if (!entries[k] && ev >= EV_THRESHOLD) {
         entries[k] = {
           match_id: id, home: fx.home.team, away: fx.away.team, commence: rec.commence,
           timestamp_placement: rec.latest.t, timestamp_close: null,
           market: c.market, line: c.line, selection: c.selection,
-          model_prob_raw: +modelWinProb(pred.cells, c.market, c.line, c.selection).toFixed(4),
+          model_prob_raw: +rawProb.toFixed(4), model_prob_used: +calProb.toFixed(4), calibrated: c.market === "1x2" && !!cal1x2Probs,
           market_prob_shin: +c.marketProb.toFixed(4), ev: +ev.toFixed(4),
-          raw_edge: c.market === "1x2" ? +(modelWinProb(pred.cells, c.market, c.line, c.selection) - c.marketProb).toFixed(4) : null,
+          raw_edge: c.market === "1x2" ? +(calProb - c.marketProb).toFixed(4) : null,
+          kelly_full: +ve.kelly.toFixed(4), stake_flat: ve.stake.flat, stake_kelly: ve.stake.kelly, bankroll: CONFIG.bankroll,
           placement_odds: c.odds, sharp, closing_odds: null, result: null, pnl: null, clv: null,
         };
         created++;
@@ -111,4 +128,4 @@ writeFileSync(OUT, JSON.stringify(log, null, 0) + "\n");
 
 const open = Object.values(entries).filter(e => e.result == null).length;
 console.log(`shadow-log: scanned ${scanned} upcoming · +${created} new signals · ${closed} closing-lines · ${settled} settled`);
-console.log(`            ${Object.keys(entries).length} entries total (${open} open) · EV≥${EV_THRESHOLD} · → data/bet_log.json`);
+console.log(`            ${Object.keys(entries).length} entries total (${open} open) · EV≥${EV_THRESHOLD} · calibration=${calActive ? "ACTIVE (1X2)" : "raw (gate closed)"} · → data/bet_log.json`);
