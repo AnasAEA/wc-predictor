@@ -56,14 +56,15 @@ function load2022() {
 }
 
 // ---- leave-prior loop: predict each match from strictly-earlier matches only ----------------------
-function backtest({ plays, seed }) {
+// `opts` (default MODEL) is threaded into the core so we can sweep parameters (K, ρ, μ…) for diagnostics.
+function backtest({ plays, seed }, opts = MODEL) {
   let brier = 0, ll = 0, corr = 0, exact = 0, sumP = 0;
   const points = []; // {p, hit} over all H/D/A classes, for calibration
   for (let i = 0; i < plays.length; i++) {
     const m = plays[i], prior = plays.slice(0, i);
     const games = prior.map(gameSignal);
-    const ratings = eloRatings(games, seed);
-    const ad = attackDefenceRatings(games, seed);
+    const ratings = eloRatings(games, seed, opts);
+    const ad = attackDefenceRatings(games, seed, opts);
     const rate = c => ratings[c] ?? seed(c);
     const teamSide = (host, hc, ac) => host === hc ? "H" : host === ac ? "A" : null;
     const playedH = prior.filter(x => x.hc === m.hc || x.ac === m.hc).length;
@@ -72,7 +73,7 @@ function backtest({ plays, seed }) {
       eloH: rate(m.hc), eloA: rate(m.ac), seedH: seed(m.hc), seedA: seed(m.ac), ko: m.ko,
       ad: { adH: ad[m.hc], adA: ad[m.ac] }, ftCount: i, playedH, playedA,
       host: teamSide(m.host, m.hc, m.ac), names: { h: m.nameH, a: m.nameA },
-    });
+    }, opts);
     const act = m.gh > m.ga ? "H" : m.gh < m.ga ? "A" : "D";
     const pAct = act === "H" ? wp.h : act === "A" ? wp.a : wp.d;
     sumP += pAct; ll += -Math.log(Math.max(1e-9, pAct));
