@@ -60,6 +60,17 @@ bet) more than 1X2.
 > Note: the Dixon-Coles τ low-score nudge is still applied under NegBin. With a fatter base tail it's
 > double-counting a little at 0-0/1-1; if we deploy NegBin we'll re-fit ρ (or drop τ for the goal markets).
 
+### The ρ/τ trap (must test at the gate)
+Dixon-Coles ρ exists *only* to patch Poisson's draw deficit. NegBin already inflates the low scores
+naturally, so **NegBin + ρ=−0.11 will over-predict 0-0 and 1-1** — which silently misprices Asian Handicaps
+toward the underdog (backing +0.5/+1.0 when the value is −1.0). So the goal-markets A/B matrix at the gate is
+**three** cells, not two:
+1. **Poisson + ρ** (current)
+2. **NegBin + ρ** (expected to over-value draws — the trap)
+3. **NegBin + ρ=0** (likely winner for Totals/AH)
+
+`scoreGrid` already supports this: set `opts.goalDist` and `opts.DC_RHO` independently — no new code needed.
+
 ## Reconvene at the gate
 When calibration `n ≥ 200` flips to `active`, compare **Calibrated Poisson vs Calibrated NegBin on live CLV**
-(per market) and lock in what goes live. The engine is fully armed for that test.
+(per market, with the ρ/τ matrix above) and lock in what goes live. The engine is fully armed for that test.
