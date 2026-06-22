@@ -33,6 +33,8 @@ export const MODEL = Object.freeze({
   LAM_FLOOR: 0.18, GRID: 9,                               // λ floor; score grid is GRID×GRID (0..8)
 });
 
+import { makeGoalDist } from "./goal_dist.mjs";
+
 const clampRange = ([lo, hi], v) => Math.max(lo, Math.min(hi, v));
 
 // ---- Poisson + Dixon-Coles low-score correction --------------------------------------------------
@@ -128,11 +130,17 @@ export function attackDefenceRatings(games, seed, o = MODEL) {
   return out;
 }
 
-/** Sum the GRID×GRID Poisson score matrix into outcome mass + expected goals + per-cell scorelines. */
+/**
+ * Sum the GRID×GRID score matrix into outcome mass + expected goals + per-cell scorelines.
+ * Goal counts default to exact Poisson; pass opts.goalDist (e.g. {name:"negbin",alpha}) to swap the
+ * distribution without touching anything upstream. (The Dixon-Coles τ is unchanged — with NegBin it's a
+ * reasonable low-score nudge but worth re-checking; see goal_dist.mjs.)
+ */
 export function scoreGrid(lamH, lamA, { live = false, lead = 0, baseH = 0, baseA = 0 } = {}, o = MODEL) {
   const N = o.GRID; let pH = 0, pD = 0, pA = 0, exH = 0, exA = 0; const cells = [];
+  const pmf = o.goalDist ? makeGoalDist(o.goalDist) : poisson;
   for (let rh = 0; rh < N; rh++) for (let ra = 0; ra < N; ra++) {
-    const p = poisson(rh, lamH) * poisson(ra, lamA) * (live ? 1 : dcTau(rh, ra, lamH, lamA, o.DC_RHO));
+    const p = pmf(rh, lamH) * pmf(ra, lamA) * (live ? 1 : dcTau(rh, ra, lamH, lamA, o.DC_RHO));
     const fin = lead + rh - ra;
     if (fin > 0) pH += p; else if (fin < 0) pA += p; else pD += p;
     cells.push({ h: baseH + rh, a: baseA + ra, p });

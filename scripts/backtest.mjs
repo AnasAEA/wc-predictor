@@ -19,6 +19,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { gameSignal, eloRatings, attackDefenceRatings, matchProbabilities, MODEL } from "../model/core.mjs";
+import { dispersionIndex, fitDispersion } from "../model/goal_dist.mjs";
 
 const J = p => JSON.parse(readFileSync(new URL(`../${p}`, import.meta.url), "utf8"));
 const HOST_OF = { USA: "US", Mexico: "MX", Canada: "CA" };
@@ -60,6 +61,7 @@ function load2022() {
 function backtest({ plays, seed }, opts = MODEL) {
   let brier = 0, ll = 0, corr = 0, exact = 0, sumP = 0;
   const points = []; // {p, hit} over all H/D/A classes, for calibration
+  const goalSamples = []; // {mean:λ, k:goals} per side, for dispersion fitting
   for (let i = 0; i < plays.length; i++) {
     const m = plays[i], prior = plays.slice(0, i);
     const games = prior.map(gameSignal);
@@ -82,9 +84,10 @@ function backtest({ plays, seed }, opts = MODEL) {
     if (pred === act) corr++;
     const top = wp.predicted[0]; if (top && top.h === m.gh && top.a === m.ga) exact++;
     points.push({ p: wp.h, hit: act === "H" }, { p: wp.d, hit: act === "D" }, { p: wp.a, hit: act === "A" });
+    goalSamples.push({ mean: wp.lambdas.h, k: m.gh }, { mean: wp.lambdas.a, k: m.ga });
   }
   const n = plays.length;
-  return { n, acc: corr / n, meanP: sumP / n, brier: brier / n, ll: ll / n, exact, points };
+  return { n, acc: corr / n, meanP: sumP / n, brier: brier / n, ll: ll / n, exact, points, goalSamples };
 }
 
 // ---- calibration: 10 reliability bins + expected calibration error --------------------------------
@@ -113,10 +116,38 @@ function report(ds) {
   return r;
 }
 
+// Goal-distribution diagnostic + A/B: is the mean-shift a μ problem or overdispersion? Which dist predicts best?
+function goalStudy(ds) {
+  console.log(`\n══════════ GOAL DISTRIBUTION STUDY · ${ds.label} ══════════`);
+  const base = backtest(ds);
+  // 1) empirical dispersion of observed goals-per-team vs the model's average λ (mean-shift check)
+  const obs = base.goalSamples.map(s => s.k), di = dispersionIndex(obs);
+  const meanLam = base.goalSamples.reduce((s, x) => s + x.mean, 0) / base.goalSamples.length;
+  console.log(`  goals/side: actual mean ${di.mean.toFixed(3)}, var ${di.var.toFixed(3)}, dispersion Var/Mean ${di.ratio.toFixed(3)} (1.0=Poisson)`);
+  console.log(`  model mean λ ${meanLam.toFixed(3)}  →  mean-shift ${(meanLam - di.mean >= 0 ? "+" : "")}${(meanLam - di.mean).toFixed(3)} per side`);
+  // 2) MLE-fit the dispersion α on (λ, goals)
+  const fit = fitDispersion(base.goalSamples);
+  console.log(`  fitted NegBin α ${fit.alpha.toFixed(3)}  ·  logLik NB ${fit.llNB.toFixed(1)} vs Poisson ${fit.llPois.toFixed(1)}  ·  ${fit.improved ? "NegBin fits better" : "Poisson fine"}`);
+  // 3) A/B the three candidates on outcome + calibration
+  const muUp = meanLam > 0 ? MODEL.MU_GROUP * (di.mean / meanLam) : MODEL.MU_GROUP; // μ rescaled to kill the mean-shift
+  const variants = {
+    "Poisson (current)": MODEL,
+    [`Poisson μ→${muUp.toFixed(2)}`]: { ...MODEL, MU_GROUP: muUp, MU_KO: MODEL.MU_KO * (muUp / MODEL.MU_GROUP) },
+    [`NegBin α=${fit.alpha.toFixed(2)}`]: { ...MODEL, goalDist: { name: "negbin", alpha: fit.alpha } },
+  };
+  console.log(`  A/B:                          acc     Brier   LogLoss  ECE`);
+  for (const [name, opt] of Object.entries(variants)) {
+    const r = backtest(ds, opt), c = calibration(r.points);
+    console.log(`     ${name.padEnd(22)}  ${(r.acc * 100).toFixed(1)}%   ${r.brier.toFixed(3)}   ${r.ll.toFixed(3)}    ${(c.ece * 100).toFixed(1)}%`);
+  }
+}
+
 function main() {
   console.log(`WC·26 model backtest — shared core (model/core.mjs)  ·  DC_RHO=${MODEL.DC_RHO}, K=${MODEL.K}, μ=${MODEL.MU_GROUP}`);
   report(load2026());
   report(load2022());
+  goalStudy(load2026());
+  goalStudy(load2022());
   console.log("");
 }
 
