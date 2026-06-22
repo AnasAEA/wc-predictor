@@ -1,5 +1,9 @@
 # WC·26 — World Cup 2026 Companion
 
+> **This is a fork** of [`lavyagarg240294/wc26`](https://github.com/lavyagarg240294/wc26), being extended into a
+> betting-grade match predictor. **Start with [`docs/PREDICTOR_NOTES.md`](docs/PREDICTOR_NOTES.md)** — it covers
+> the analysis, the model, the backtest findings, the betting plan, and how to run everything.
+
 A fast, no-build fan site for the **World Cup 2026** — every match in your timezone, a **win probability + predicted scoreline** for every game, a favorite team that re-themes the whole UI, and a tournament that fills itself in as games are played.
 
 **What's inside**
