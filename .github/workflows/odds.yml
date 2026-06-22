@@ -1,0 +1,51 @@
+name: Update Odds
+
+# Pulls WC2026 betting odds from The Odds API into data/odds.json (scripts/fetch-odds.mjs).
+# This is the market benchmark for the predictor: it starts the forward-only validation set the $0/keyless
+# constraint forces on us (no free odds history), so it should run from now through the tournament.
+#
+# SETUP (one-time): add a free key from https://the-odds-api.com as the ODDS_API_KEY repo secret
+# (Settings → Secrets and variables → Actions). Until then the script no-ops cleanly (CI stays green).
+#
+# QUOTA: free tier ≈ 500 req/mo, charged markets × regions per call. The script hard-stops below a floor
+# (ODDS_QUOTA_FLOOR). The cron below (~every 90 min) ≈ 16/day ≈ 480/mo for ONE region×market unit; the
+# default eu,us × h2h,spreads,totals is heavier, so tune the schedule / ODDS_REGIONS / ODDS_MARKETS to taste.
+on:
+  schedule:
+    - cron: "7 */2 * * *"     # every ~2h (raise frequency near big kickoffs if quota allows)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: odds
+  cancel-in-progress: true
+
+jobs:
+  odds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Fetch odds, commit if changed
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_REGIONS: ${{ vars.ODDS_REGIONS }}
+          ODDS_MARKETS: ${{ vars.ODDS_MARKETS }}
+        run: |
+          # hard date guard (the tournament ends 2026-07-19)
+          if [ "$(date -u +%Y%m%d)" -gt "20260721" ]; then echo "past the tournament window — skipping"; exit 0; fi
+          git config user.name "wc26-bot"
+          git config user.email "actions@users.noreply.github.com"
+          node scripts/fetch-odds.mjs || echo "odds fetch error — skipping this run"
+          git add data/odds.json 2>/dev/null || true
+          if ! git diff --cached --quiet 2>/dev/null; then
+            git commit -m "odds: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push 2>/dev/null \
+              || { git fetch origin main && git rebase -X theirs origin/main 2>/dev/null && git push 2>/dev/null; } \
+              || { git rebase --abort 2>/dev/null; git reset --hard origin/main; echo "push deferred — resynced, will retry next run"; }
+          else
+            echo "no odds changes"
+          fi
