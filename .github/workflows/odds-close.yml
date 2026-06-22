@@ -36,7 +36,8 @@ jobs:
           node scripts/fetch-odds.mjs --near-ko-only || echo "near-ko fetch error — skipping"
           node scripts/calibrate.mjs || echo "calibrate error — skipping"
           node scripts/shadow-log.mjs || echo "shadow-log error — skipping"
-          git add data/odds.json data/calibration.json data/bet_log.json 2>/dev/null || true
+          node scripts/report.mjs || echo "report error — skipping"
+          git add data/odds.json data/calibration.json data/bet_log.json data/model_report.json 2>/dev/null || true
           if ! git diff --cached --quiet 2>/dev/null; then
             git commit -m "close: $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push 2>/dev/null \

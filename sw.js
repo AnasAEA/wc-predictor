@@ -7,7 +7,7 @@
  * Cache keys strip ?t= / ?v= so the every-60s polled files and versioned assets don't pile up.
  * Bump CACHE per deploy; activate() purges old caches and claims clients.
  */
-const CACHE = "wc26-329";
+const CACHE = "wc26-330";
 const keyFor = req => new Request(new URL(req.url).origin + new URL(req.url).pathname); // drop the query
 
 self.addEventListener("install", () => self.skipWaiting());

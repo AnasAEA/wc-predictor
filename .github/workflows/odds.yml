@@ -42,7 +42,8 @@ jobs:
           node scripts/fetch-odds.mjs || echo "odds fetch error — skipping this run"
           node scripts/calibrate.mjs || echo "calibrate error — skipping this run"
           node scripts/shadow-log.mjs || echo "shadow-log error — skipping this run"
-          git add data/odds.json data/calibration.json data/bet_log.json 2>/dev/null || true
+          node scripts/report.mjs || echo "report error — skipping this run"
+          git add data/odds.json data/calibration.json data/bet_log.json data/model_report.json 2>/dev/null || true
           if ! git diff --cached --quiet 2>/dev/null; then
             git commit -m "odds: $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push 2>/dev/null \

@@ -58,7 +58,7 @@ function toggleSave(id) {
 const AUTO_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 const tz = () => (S.tz === "auto" ? AUTO_TZ : S.tz);
 const GROUPS = "ABCDEFGHIJKL".split("");
-const BUILD = "329";  // shown in footer; bump with the ?v= asset version
+const BUILD = "330";  // shown in footer; bump with the ?v= asset version
 
 const ZONES = [
   ["auto", "Auto (device)"],
@@ -147,7 +147,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // instead of jumping straight to the cards' h4. Injected here (every render funnels through paint with its view el)
 // so it survives poll re-renders too. Keyed by section id; non-view paints (cards, popups) are untouched.
 // groups/sim set el.innerHTML directly (not via paint), so they prepend viewH2() themselves.
-const VIEW_H2 = { "view-matches": "Matches", "view-teams": "Teams", "view-players": "Players", "view-groups": "Tables", "view-sim": "Predict", "view-stats": "Statistics", "view-pulse": "News" };
+const VIEW_H2 = { "view-matches": "Matches", "view-teams": "Teams", "view-players": "Players", "view-groups": "Tables", "view-sim": "Predict", "view-stats": "Statistics", "view-pulse": "News", "view-model": "Model" };
 const viewH2 = id => VIEW_H2[id] ? `<h2 class="vh">${VIEW_H2[id]}</h2>` : "";
 function paint(el, html) {
   if (!el) return;
@@ -4144,12 +4144,127 @@ function wc22Continuity(code) {
   return { finish: w.finish, tier: w.tier, in2022: (w.squad || []).length, continuing, fresh };
 }
 
+/* ---------------- Model cockpit (betting layer) ---------------- */
+// Reads the baked data/model_report.json (distilled by scripts/report.mjs from the backtest + calibration +
+// goal study + shadow bet-log) plus a paper-only framing. Everything here is a clearly-labelled MODEL estimate.
+async function loadModel() {
+  try { S.modelReport = await (await fetch("data/model_report.json?t=" + Date.now(), { cache: "no-store" })).json(); }
+  catch { S.modelReport = null; }
+}
+const _mp = x => Math.round((x || 0) * 100);                    // 0..1 → integer %
+const _mp1 = x => ((x || 0) * 100).toFixed(1);
+const _mEV = x => (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "%";
+const _mtName = c => esc(S.teams?.[c]?.name || c);
+const MKT_LABEL = { "1x2": "1X2", totals: "O/U", ah: "AH" };
+function _mSelLabel(s) {
+  if (s.market === "1x2") return s.selection === "home" ? `${flag(s.home)} ${_mtName(s.home)}` : s.selection === "away" ? `${flag(s.away)} ${_mtName(s.away)}` : "Draw";
+  if (s.market === "totals") return `${s.selection === "over" ? "Over" : "Under"} ${s.line}`;
+  const t = s.selection === "home" ? s.home : s.away; return `${flag(t)} ${_mtName(t)} ${s.line > 0 ? "+" + s.line : s.line}`;
+}
+// reliability chart: predicted (x) vs observed (y); the diagonal is perfect calibration
+function _mRelChart(rows) {
+  if (!rows?.length) return "";
+  const W = 240, H = 240, pad = 26, sc = v => pad + v * (W - 2 * pad), scY = v => H - pad - v * (H - 2 * pad);
+  const maxN = Math.max(...rows.map(r => r.n));
+  const pts = rows.map(r => `<circle cx="${sc(r.pred).toFixed(1)}" cy="${scY(r.obs).toFixed(1)}" r="${(3 + 6 * r.n / maxN).toFixed(1)}" class="mrel-dot"><title>says ${_mp(r.pred)}% → happens ${_mp(r.obs)}% (n=${r.n})</title></circle>`).join("");
+  const grid = [0, .25, .5, .75, 1].map(g => `<line x1="${sc(g)}" y1="${pad}" x2="${sc(g)}" y2="${H - pad}" class="mrel-grid"/><line x1="${pad}" y1="${scY(g)}" x2="${W - pad}" y2="${scY(g)}" class="mrel-grid"/>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" class="mrel" role="img" aria-label="Calibration reliability">
+    ${grid}<line x1="${sc(0)}" y1="${scY(0)}" x2="${sc(1)}" y2="${scY(1)}" class="mrel-diag"/>${pts}
+    <text x="${W / 2}" y="${H - 4}" class="mrel-ax">model says →</text>
+    <text x="10" y="${H / 2}" class="mrel-ax" transform="rotate(-90 10 ${H / 2})">actually happens →</text></svg>`;
+}
+function _mSpark(curve) {
+  if (!curve || curve.length < 2) return "";
+  const W = 280, H = 56, lo = Math.min(...curve), hi = Math.max(...curve), rng = hi - lo || 1;
+  const pts = curve.map((v, i) => `${(i / (curve.length - 1) * W).toFixed(1)},${(H - (v - lo) / rng * H).toFixed(1)}`).join(" ");
+  const up = curve[curve.length - 1] >= curve[0];
+  return `<svg viewBox="0 0 ${W} ${H}" class="mspark ${up ? "up" : "down"}" preserveAspectRatio="none"><polyline points="${pts}"/></svg>`;
+}
+function renderModel() {
+  const el = $("#view-model"); const R = S.modelReport;
+  if (!R) { paint(el, viewH2("view-model") + `<div class="m-empty">${ICO.spark || ""}<p>Loading model…</p></div>`); loadModel().then(() => { if (S.view === "model") renderModel(); }); return; }
+  const flt = S.modelMarket || "all";
+  const p = R.performance, g = R.goals, sg = R.signals, ss = sg.settledSummary;
+  const calPct = Math.min(100, Math.round((R.calN / R.calTarget) * 100));
+  const statusChip = R.status === "active"
+    ? `<span class="m-badge ok">calibration active</span>`
+    : `<span class="m-badge wait">calibrating · ${R.calN}/${R.calTarget}</span>`;
+  const rows = (flt === "all" ? sg.openTop : sg.openTop.filter(s => s.market === flt));
+
+  const hero = `<div class="m-hero">
+    <div class="m-hero-l"><h2>Model</h2><p>A Dixon-Coles goals model vs the sharp market (Pinnacle). Every number here is a <b>model estimate</b> — paper only, not betting advice.</p></div>
+    <div class="m-hero-r">${statusChip}<span class="m-badge paper">PAPER · $${R.config.bankroll.toLocaleString()}</span></div>
+  </div>`;
+
+  const status = `<div class="m-strip">
+    <div class="m-stripcell"><span class="m-k">Calibration</span><span class="m-v">${R.status}</span><div class="m-prog"><i style="width:${calPct}%"></i></div><span class="m-sub">${R.calN}/${R.calTarget} samples → auto-activates</span></div>
+    <div class="m-stripcell"><span class="m-k">Odds quota</span><span class="m-v">${R.quota ? R.quota.remaining : "–"}</span><span class="m-sub">of 500/mo · updated ${R.oddsUpdated ? relTime(R.oddsUpdated) : "–"}</span></div>
+    <div class="m-stripcell"><span class="m-k">Live signals</span><span class="m-v">${sg.open}</span><span class="m-sub">${sg.settledCount} settled · ${sg.withClose} closing lines</span></div>
+  </div>`;
+
+  const perfStat = (k, v, sub) => `<div class="m-stat"><span class="m-stat-v">${v}</span><span class="m-stat-k">${k}</span><span class="m-stat-s">${sub}</span></div>`;
+  const perf = `<div class="m-card">
+    <div class="eyebrow">Model performance <span class="m-note">leave-prior backtest · ${p.n} matches</span></div>
+    <div class="m-stats">
+      ${perfStat("Accuracy", _mp(p.acc) + "%", "vs 33% random")}
+      ${perfStat("Brier", p.brier, "vs .667 random")}
+      ${perfStat("Log-loss", p.ll, "vs 1.10 random")}
+      ${perfStat("Exact scores", p.exact + "/" + p.n, "top scoreline hit")}
+    </div>
+    <div class="m-cal">
+      <div class="m-cal-chart">${_mRelChart(p.reliability)}</div>
+      <div class="m-cal-txt"><div class="eyebrow">Calibration</div>
+        <p>How honest the probabilities are. Dots above the line = under-confident, below = over-confident.</p>
+        <div class="m-ece"><span>Raw ECE <b>${_mp1(p.eceRaw)}%</b></span><span class="m-arrow">→</span><span>Calibrated <b class="good">${_mp1(p.eceCal)}%</b></span><span class="m-sub">(Beta)</span></div>
+      </div>
+    </div>
+  </div>`;
+
+  const shiftWarn = Math.abs(g.shiftPerSide) > 0.1;
+  const goals = `<div class="m-card">
+    <div class="eyebrow">Goal distribution ${infoBtn("Independent Poisson forces variance = mean. Real football (esp. the 48-team format) is overdispersed — more 0-0s and blow-outs. Negative-Binomial models that. Built and A/B-ready; deploys per-market at the gate.", "Goal model")}</div>
+    <div class="m-stats">
+      ${perfStat("Dispersion", g.dispersion, "Var/Mean · 1.0=Poisson")}
+      ${perfStat("Model goals", g.meanModel, "per side")}
+      ${perfStat("Actual goals", g.meanActual, "per side")}
+      ${perfStat("NegBin α", g.alpha, g.nbImproved ? "fits better" : "Poisson fine")}
+    </div>
+    ${shiftWarn ? `<p class="m-flag">⚠ Mean-shift ${g.shiftPerSide > 0 ? "+" : ""}${g.shiftPerSide}/side — calibration can't fix a biased mean; Negative-Binomial is staged for the gate.</p>` : ""}
+  </div>`;
+
+  const tallyTxt = sg.settledCount === 0
+    ? `<p class="m-sub">No settled bets yet — <b>${sg.open}</b> open signals tracking. Results, P&amp;L and CLV land here after kickoffs.</p>`
+    : `<div class="m-stats">
+        ${perfStat("Settled", sg.settledCount, `${ss.tally.win || 0}W · ${ss.tally.loss || 0}L · ${(ss.tally.push || 0)}P`)}
+        ${perfStat("P&L (units)", (ss.pnlUnits >= 0 ? "+" : "") + ss.pnlUnits, "flat 0.5% stakes")}
+        ${perfStat("CLV", ss.clvAvg == null ? "–" : _mEV(ss.clvAvg), `${ss.nClv} graded vs close`)}
+        ${perfStat("Bankroll", "$" + ss.bankroll.end, (ss.bankroll.roi >= 0 ? "+" : "") + _mp1(ss.bankroll.roi) + "% ROI")}
+      </div>${_mSpark(ss.bankroll.curve)}`;
+  const clv = `<div class="m-card"><div class="eyebrow">Paper performance &amp; CLV <span class="m-note">the real scoreboard</span></div>${tallyTxt}</div>`;
+
+  const filterBar = `<div class="m-filter">${["all", "1x2", "totals", "ah"].map(m =>
+    `<button class="m-fbtn ${flt === m ? "is-on" : ""}" data-mmkt="${m}">${m === "all" ? "All" : MKT_LABEL[m]}${m !== "all" && sg.byMarket[m] ? ` <i>${sg.byMarket[m]}</i>` : ""}</button>`).join("")}</div>`;
+  const sigRows = rows.length ? rows.map(s => `<div class="m-sig">
+      <div class="m-sig-m"><span class="m-mtag mk-${s.market}">${MKT_LABEL[s.market]}</span><div class="m-sig-mt"><b>${_mSelLabel(s)}</b><span>${esc(s.match)}</span></div></div>
+      <div class="m-sig-p"><span class="m-pp"><b>${_mp(s.modelProb)}%</b><i>model</i></span><span class="m-vs">vs</span><span class="m-pp"><b>${_mp(s.marketProb)}%</b><i>market</i></span></div>
+      <div class="m-sig-e"><span class="m-ev">${_mEV(s.ev)}</span><span class="m-od">@ ${s.odds}</span><span class="m-stk">$${s.stakeFlat}</span></div>
+    </div>`).join("") : `<p class="m-sub">No open signals in this market right now.</p>`;
+  const signals = `<div class="m-card">
+    <div class="eyebrow">Where the model disagrees with the market <span class="m-note">model EV ≥ ${_mp(R.config.minEV)}% · ${R.status === "active" ? "calibrated" : "raw (gate closed)"}</span></div>
+    ${filterBar}<div class="m-sigs">${sigRows}</div>
+    <p class="m-foot">Sorted by model expected value. ${R.status !== "active" ? "<b>Uncalibrated</b> — the model still over-values longshots until calibration activates, so treat large edges as noise. " : ""}Estimates only · not betting advice · 18+ · gamble responsibly.</p>
+  </div>`;
+
+  paint(el, viewH2("view-model") + hero + status + perf + goals + clv + signals);
+  $$(".m-fbtn", el).forEach(b => b.onclick = () => { S.modelMarket = b.dataset.mmkt; renderModel(); });
+}
+
 /* ---------------- navigation ---------------- */
-const RENDER = { matches: renderMatches, teams: renderTeams, players: renderPlayers, groups: renderGroups, stats: renderStats, sim: renderSim, pulse: renderPulse };
+const RENDER = { matches: renderMatches, teams: renderTeams, players: renderPlayers, groups: renderGroups, stats: renderStats, sim: renderSim, pulse: renderPulse, model: renderModel };
 // shareable per-tab URL hash (Matches is the default → no hash; Predict's internal view name is "sim")
-const VIEW_HASH = { teams: "teams", players: "players", groups: "tables", sim: "predict", stats: "stats", pulse: "pulse" };
+const VIEW_HASH = { teams: "teams", players: "players", groups: "tables", sim: "predict", stats: "stats", pulse: "pulse", model: "model" };
 // "live" survives only as a redirect: Live folded into the match modal (build 329), but old #live links still land on Matches
-const HASH_VIEW = { live: "matches", matches: "matches", teams: "teams", players: "players", tables: "groups", groups: "groups", predict: "sim", stats: "stats", pulse: "pulse" };
+const HASH_VIEW = { live: "matches", matches: "matches", teams: "teams", players: "players", tables: "groups", groups: "groups", predict: "sim", stats: "stats", pulse: "pulse", model: "model" };
 function nav(v) {
   if (typeof closeInfoPop === "function") closeInfoPop();   // an open explainer is anchored to the old view
   S.view = v;
