@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { multiplicative, power, shin, betfairMid, devig } from "../betting/devig.mjs";
 import { allMarkets, oneXtwo, overUnder, asianHandicap, btts, scoreDistribution } from "../model/markets.mjs";
 import { matchProbabilities } from "../model/core.mjs";
+import { settleUnits, pnl, modelEV, settle, componentsOf, clv } from "../betting/clv.mjs";
 
 const sums1 = (a, msg) => assert.ok(Math.abs(a.reduce((s, x) => s + x, 0) - 1) < 1e-9, `${msg} sums to 1`);
 
@@ -77,6 +78,50 @@ test("AH 0.0 (draw no bet) equals 1X2 minus the draw, renormalised", () => {
   const x = oneXtwo(cells), ah0 = asianHandicap(cells, 0);
   assert.ok(Math.abs(ah0.home - x.h) < 1e-9 && Math.abs(ah0.away - x.a) < 1e-9, "AH0 home/away = raw win probs");
   assert.ok(Math.abs(ah0.push - x.d) < 1e-9, "AH0 push = draw");
+});
+
+// ---- settlement / EV / CLV -----------------------------------------------------------------------
+test("1X2 and half/whole-line settlement", () => {
+  assert.equal(settleUnits("1x2", 0, "home", 2, 1), 1);
+  assert.equal(settleUnits("1x2", 0, "away", 2, 1), -1);
+  assert.equal(settleUnits("1x2", 0, "draw", 1, 1), 1);
+  assert.equal(settleUnits("totals", 2.5, "over", 2, 1), 1, "3 goals > 2.5");
+  assert.equal(settleUnits("totals", 2.5, "under", 2, 0), 1, "2 goals < 2.5");
+  assert.equal(settleUnits("totals", 2.0, "over", 1, 1), 0, "exactly 2 ⇒ push on whole line");
+  assert.equal(settleUnits("ah", -0.5, "home", 1, 0), 1, "win by 1 covers -0.5");
+  assert.equal(settleUnits("ah", -1.0, "home", 1, 0), 0, "win by exactly 1 ⇒ push on -1.0");
+  assert.equal(settleUnits("ah", -1.0, "home", 2, 0), 1, "win by 2 covers -1.0");
+});
+
+test("quarter-line settlement gives half-win / half-loss", () => {
+  assert.deepEqual(componentsOf(-0.75), [-1.0, -0.5]);
+  assert.deepEqual(componentsOf(2.25), [2.0, 2.5]);
+  // AH home -0.75, win by exactly 1: -0.5 leg wins, -1.0 leg pushes ⇒ +0.5
+  assert.equal(settleUnits("ah", -0.75, "home", 1, 0), 0.5);
+  // AH home -0.75, draw: both legs lose ⇒ -1
+  assert.equal(settleUnits("ah", -0.75, "home", 1, 1), -1);
+  // Totals over 2.25 with exactly 2 goals: O2.0 pushes, O2.5 loses ⇒ -0.5
+  assert.equal(settleUnits("totals", 2.25, "over", 1, 1), -0.5);
+});
+
+test("pnl and modelEV are consistent with the distribution", () => {
+  assert.equal(pnl(1, 2.5), 1.5);
+  assert.equal(pnl(-1, 2.5), -1);
+  assert.equal(pnl(0, 2.5), 0);
+  assert.equal(pnl(0.5, 3.0), 1.0); // half-win at 3.0 ⇒ (3-1)/2
+  assert.equal(pnl(-0.5, 3.0), -0.5);
+  // a fair coin priced at 2.0 has ~0 EV; priced at 2.2 it's positive
+  const cells = [{ h: 1, a: 0, p: 0.5 }, { h: 0, a: 1, p: 0.5 }];
+  assert.ok(Math.abs(modelEV(cells, "1x2", 0, "home", 2.0)) < 1e-9, "fair price ⇒ 0 EV");
+  assert.ok(modelEV(cells, "1x2", 0, "home", 2.2) > 0, "generous price ⇒ +EV");
+});
+
+test("settle labels and CLV sign", () => {
+  assert.equal(settle("totals", 2.25, "over", 1, 1, 1.9).result, "half-loss");
+  assert.equal(settle("1x2", 0, "home", 3, 0, 1.8).result, "win");
+  // beating the close: you took 2.10, it closed at 1.90 ⇒ positive CLV
+  assert.ok(clv({ placementOdds: 2.10, closingOdds: 1.90 }).clvOdds > 0);
+  assert.ok(clv({ placementOdds: 1.80, closingOdds: 2.00 }).clvOdds < 0, "worse than close ⇒ negative");
 });
 
 test("allMarkets wires to the model's adjusted lambdas", () => {

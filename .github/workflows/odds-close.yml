@@ -1,0 +1,46 @@
+name: Capture Closing Lines
+
+# The CLV-critical poller. Runs often, but scripts/fetch-odds.mjs --near-ko-only spends quota ONLY when a
+# kickoff is within NEAR_KO_MIN (default 45 min) — so it captures the sharp CLOSING line (after lineups drop,
+# which is when the big moves happen) without a dense all-day cron blowing the 500/mo budget. On every run it
+# also re-scores the shadow log so any open bet gets its closing_odds + CLV filled at the right moment.
+on:
+  schedule:
+    - cron: "*/15 * * * *"    # every 15 min; almost all runs no-op (no imminent kickoff = no API call)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: odds            # share the lock with the baseline odds workflow (never commit-race it)
+  cancel-in-progress: false
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Capture closing line near kickoff, update shadow log
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          ODDS_REGIONS: ${{ vars.ODDS_REGIONS }}
+          ODDS_MARKETS: ${{ vars.ODDS_MARKETS }}
+          NEAR_KO_MIN: ${{ vars.NEAR_KO_MIN }}
+        run: |
+          if [ "$(date -u +%Y%m%d)" -gt "20260721" ]; then echo "past the tournament window — skipping"; exit 0; fi
+          git config user.name "wc26-bot"
+          git config user.email "actions@users.noreply.github.com"
+          node scripts/fetch-odds.mjs --near-ko-only || echo "near-ko fetch error — skipping"
+          node scripts/shadow-log.mjs || echo "shadow-log error — skipping"
+          git add data/odds.json data/bet_log.json 2>/dev/null || true
+          if ! git diff --cached --quiet 2>/dev/null; then
+            git commit -m "close: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push 2>/dev/null \
+              || { git fetch origin main && git rebase -X theirs origin/main 2>/dev/null && git push 2>/dev/null; } \
+              || { git rebase --abort 2>/dev/null; git reset --hard origin/main; echo "push deferred — resynced, will retry next run"; }
+          else
+            echo "no changes"
+          fi

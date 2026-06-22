@@ -12,7 +12,7 @@ name: Update Odds
 # default eu,us × h2h,spreads,totals is heavier, so tune the schedule / ODDS_REGIONS / ODDS_MARKETS to taste.
 on:
   schedule:
-    - cron: "7 */2 * * *"     # every ~2h (raise frequency near big kickoffs if quota allows)
+    - cron: "7 */4 * * *"     # baseline every ~4h (the odds-close workflow handles the near-KO captures)
   workflow_dispatch:
 
 permissions:
@@ -40,7 +40,8 @@ jobs:
           git config user.name "wc26-bot"
           git config user.email "actions@users.noreply.github.com"
           node scripts/fetch-odds.mjs || echo "odds fetch error — skipping this run"
-          git add data/odds.json 2>/dev/null || true
+          node scripts/shadow-log.mjs || echo "shadow-log error — skipping this run"
+          git add data/odds.json data/bet_log.json 2>/dev/null || true
           if ! git diff --cached --quiet 2>/dev/null; then
             git commit -m "odds: $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push 2>/dev/null \

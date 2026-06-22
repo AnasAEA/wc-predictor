@@ -80,6 +80,15 @@ async function main() {
       "  3. Re-run the Odds workflow. (Exiting 0 so CI stays green until the key exists.)");
     return;
   }
+  const now0 = Date.now();
+  // --near-ko-only: a cheap frequent poller that spends quota ONLY when a kickoff is imminent, so the
+  // closing line is captured near KO (after lineups drop) without a dense all-day cron blowing the budget.
+  if (process.argv.includes("--near-ko-only")) {
+    const NEAR = Number(process.env.NEAR_KO_MIN || 45);
+    const due = fixtures.some(f => { const t = +new Date(f.utc) - now0; return t > -10 * 60000 && t <= NEAR * 60000; });
+    if (!due) { console.log(`near-ko-only: no kickoff within ${NEAR} min — no API call, no quota spent.`); return; }
+    console.log("near-ko-only: a kickoff is imminent — fetching the closing line.");
+  }
   const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : { matches: {} };
   const url = `https://api.the-odds-api.com/v4/sports/${SPORT}/odds?` +
     new URLSearchParams({ apiKey: KEY, regions: REGIONS.join(","), markets: MARKETS.join(","), oddsFormat: "decimal", dateFormat: "iso" });
