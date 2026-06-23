@@ -113,6 +113,24 @@ for (const [id, rec] of Object.entries(odds.matches)) {
     }
   }
 
+  // 2b) authoritative closing line from the persisted rec.close snapshot (fetch-odds captures it in the KO window).
+  // This is the real closing line for CLV: it runs for EVERY match — including ones already started/finished, the
+  // case the upcoming-only block above can never reach — and overwrites any earlier latest-based estimate. Idempotent
+  // on re-runs once timestamp_close matches rec.close.t. Without this, closing_odds/CLV stayed null on every settled
+  // bet, leaving the CLV gate (the actual scoreboard) un-measurable.
+  if (rec.close) {
+    const csharp = rec.close.sharp || sharpOf(rec.close.books);
+    const cbook = rec.close.books?.[csharp];
+    if (cbook) for (const c of candidates(cbook)) {
+      const e = entries[key(id, c.market, c.line, c.selection)];
+      if (e && e.timestamp_close !== rec.close.t) {
+        if (e.closing_odds == null) closed++;
+        e.closing_odds = c.odds; e.timestamp_close = rec.close.t;
+        e.clv = clv({ placementOdds: e.placement_odds, closingOdds: c.odds, placementProb: e.market_prob_shin, closingProb: c.marketProb }).clvOdds;
+      }
+    }
+  }
+
   // 3) settle finished matches
   if (isFT) for (const [k, e] of Object.entries(entries)) {
     if (e.match_id === id && e.result == null) {
