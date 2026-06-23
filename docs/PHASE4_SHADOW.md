@@ -70,3 +70,28 @@ Entry key = `match|market|line|selection` (idempotent — re-runs update, never 
 Phase 2 calibration (Platt; the longshot bias above is exhibit A) → Phase 2.5 goal-count diagnostic →
 Phase 3 value engine (EV trigger already in place, add quarter-aware staking + thresholds) → Phase 4 proper
 (grade accumulated CLV; ≥50 settled paper bets + positive CLV before any real stake).
+
+---
+
+## Ops runbook: the scores loop must run, or nothing settles
+Bet settlement keys off `data/results.json`, which is written by the **"Update scores"** workflow
+(`results.yml`) — a self-relaunching ~5h poller dispatched by `results-restart.yml` (the 15-min safety net).
+Both *dispatch* the loop via `gh workflow run`, which needs the runner `GITHUB_TOKEN` to have **`actions: write`**.
+
+**2026-06-23 incident — scores frozen since the initial import, 0 of 118 paper bets ever settled.**
+Root cause: this repo had **`default_workflow_permissions: read`**, so the dispatch silently failed every cron
+(`dispatch failed; will retry next cron`) and the loop *never started once*. The odds/buzz/close workflows
+were unaffected (they only need `contents: write`, which their own `permissions:` block grants), which masked it.
+
+Fix (one-time, repo-level):
+```bash
+gh api -X PUT repos/AnasAEA/wc-predictor/actions/permissions/workflow -F default_workflow_permissions=write
+# verify: gh api repos/AnasAEA/wc-predictor/actions/permissions/workflow  → "write"
+```
+After flipping it, the loop self-sustains (relaunch + restarter both work); `scores:` commits land every
+minute during live matches. **If results ever freeze again, check this setting first**, then confirm
+`results.yml` has an `in_progress` run.
+
+Diagnosis trap: `gh` defaults to **`upstream` = lavyagarg240294/wc26**, not `origin`. Both repos run the same
+crons independently — always pass `-R AnasAEA/wc-predictor` (or `gh repo set-default` it) or you'll debug the
+wrong clone.
