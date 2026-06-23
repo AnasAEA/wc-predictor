@@ -17,7 +17,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { buildState } from "../model/predict.mjs";
 import { shin } from "../betting/devig.mjs";
-import { modelWinProb, settle, clv } from "../betting/clv.mjs";
+import { modelWinProb, settle, clv, interpClose } from "../betting/clv.mjs";
 import { evaluate, DEFAULT_CONFIG } from "../betting/value_engine.mjs";
 import { calibrate1x2 } from "../model/calibrate.mjs";
 
@@ -44,6 +44,7 @@ const log = existsSync(OUT) ? JSON.parse(readFileSync(OUT, "utf8")) : { updated:
 const entries = log.entries;
 const now = Date.now();
 const key = (id, market, line, sel) => `${id}|${market}|${line}|${sel}`;
+const r4 = x => x == null ? null : +x.toFixed(4);
 const sharpOf = books => SHARP_PREF.find(b => books?.[b]) || null;
 
 // candidate selections per market from one bookmaker's shaped odds → [{market,line,selection,odds, mProbs}]
@@ -67,6 +68,7 @@ function candidates(book, marketProbsByLine) {
   }
   return out;
 }
+
 
 let created = 0, closed = 0, settled = 0, scanned = 0;
 for (const [id, rec] of Object.entries(odds.matches)) {
@@ -121,12 +123,27 @@ for (const [id, rec] of Object.entries(odds.matches)) {
   if (rec.close) {
     const csharp = rec.close.sharp || sharpOf(rec.close.books);
     const cbook = rec.close.books?.[csharp];
-    if (cbook) for (const c of candidates(cbook)) {
-      const e = entries[key(id, c.market, c.line, c.selection)];
-      if (e && e.timestamp_close !== rec.close.t) {
-        if (e.closing_odds == null) closed++;
-        e.closing_odds = c.odds; e.timestamp_close = rec.close.t;
-        e.clv = clv({ placementOdds: e.placement_odds, closingOdds: c.odds, placementProb: e.market_prob_shin, closingProb: c.marketProb }).clvOdds;
+    if (cbook) {
+      // exact line still on the sharp book's board → real raw closing odds, so we get both metrics.
+      for (const c of candidates(cbook)) {
+        const e = entries[key(id, c.market, c.line, c.selection)];
+        if (e && e.timestamp_close !== rec.close.t) {
+          if (e.closing_odds == null) closed++;
+          const m = clv({ placementOdds: e.placement_odds, closingOdds: c.odds, placementProb: e.market_prob_shin, closingProb: c.marketProb });
+          e.closing_odds = c.odds; e.timestamp_close = rec.close.t; e.closing_interp = false;
+          e.clv = r4(m.clvProb); e.clv_odds = r4(m.clvOdds);          // clvProb is canonical; clvOdds = intuitive proxy
+        }
+      }
+      // AH/totals whose exact line drifted off the board by close → interpolate the fair close from all books.
+      for (const [, e] of Object.entries(entries)) {
+        if (e.match_id !== id || (e.market !== "ah" && e.market !== "totals")) continue;
+        if (e.closing_odds != null && !(e.closing_interp && e.timestamp_close !== rec.close.t)) continue;
+        const ic = interpClose(rec.close.books, e.market, e.line, e.selection);
+        if (ic) {
+          if (e.closing_odds == null) closed++;
+          e.closing_odds = r4(ic.odds); e.timestamp_close = rec.close.t; e.closing_interp = true;
+          e.clv = r4(clv({ placementProb: e.market_prob_shin, closingProb: ic.prob }).clvProb); e.clv_odds = null;
+        }
       }
     }
   }

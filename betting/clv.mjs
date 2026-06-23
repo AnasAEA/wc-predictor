@@ -10,6 +10,7 @@
  * EV (not raw prob difference) is the universal value trigger: it folds in the odds and the push/quarter
  * structure that a pure probability edge can't represent on Asian markets.
  */
+import { shin } from "./devig.mjs";
 
 const HALF = 0.5;
 /** The .0/.5 component lines a (possibly quarter) line splits into. Whole/half → itself. */
@@ -75,6 +76,36 @@ export function clv({ placementOdds, closingOdds, placementProb = null, closingP
   const out = { clvOdds: placementOdds && closingOdds ? placementOdds / closingOdds - 1 : null };
   out.clvProb = placementProb != null && closingProb != null ? closingProb - placementProb : null;
   return out;
+}
+
+/**
+ * Closing fair-probability of an AH/totals selection at a line that may no longer be on the board at close.
+ * AH/totals lines drift before kickoff and the sharp book posts only one line, so we pool a de-vigged
+ * P(selection) ladder across ALL closing books (Shin per book, averaging duplicate lines), bracket the wanted
+ * line between its two nearest rungs and interpolate. Probability space is monotonic and ~linear in the line and
+ * is de-vig-consistent with the placement prob, so the resulting clvProb compares like with like.
+ * @returns {prob, odds:1/prob (fair)} or null when the line can't be bracketed (we don't extrapolate-guess).
+ */
+export function interpClose(books, market, line, selection) {
+  if (market !== "ah" && market !== "totals") return null;
+  const acc = {};                                       // line → { sum, n } of de-vigged P(selection)
+  for (const bk of Object.values(books || {})) {
+    const table = market === "totals" ? bk.totals : bk.spreads;
+    if (!table) continue;
+    for (const [L, o] of Object.entries(table)) {
+      const pair = market === "totals" ? [o.over, o.under] : [o.home, o.away];
+      if (!pair[0] || !pair[1]) continue;
+      const dv = shin(pair).probs;
+      const p = (market === "totals" ? selection === "over" : selection === "home") ? dv[0] : dv[1];
+      (acc[+L] ??= { sum: 0, n: 0 }); acc[+L].sum += p; acc[+L].n++;
+    }
+  }
+  const pts = Object.entries(acc).map(([L, v]) => ({ L: +L, prob: v.sum / v.n })).sort((a, b) => a.L - b.L);
+  let lo = null, hi = null;
+  for (const p of pts) { if (p.L <= line && (!lo || p.L > lo.L)) lo = p; if (p.L >= line && (!hi || p.L < hi.L)) hi = p; }
+  if (!lo || !hi) return null;                          // can't bracket → leave it null, don't fabricate
+  const prob = lo.L === hi.L ? lo.prob : lo.prob + ((line - lo.L) / (hi.L - lo.L)) * (hi.prob - lo.prob);
+  return prob > 0 && prob < 1 ? { prob, odds: 1 / prob } : null;
 }
 
 /** Settle a logged bet to a result label + realised pnl, given final goals and the odds taken. */

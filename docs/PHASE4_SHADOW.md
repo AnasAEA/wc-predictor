@@ -51,11 +51,26 @@ is a hard gate before any value engine. The signals are logged precisely so cali
       "market": "1x2", "line": 0, "selection": "away",
       "model_prob_raw": 0.146, "market_prob_shin": 0.131, "ev": 0.035, "raw_edge": 0.015,
       "placement_odds": 7.10, "sharp": "pinnacle",
-      "closing_odds": null, "result": null, "pnl": null, "clv": null
+      "closing_odds": null, "closing_interp": false, "result": null, "pnl": null,
+      "clv": null, "clv_odds": null
     }
   } }
 ```
 Entry key = `match|market|line|selection` (idempotent — re-runs update, never duplicate).
+
+### Closing line & CLV (`clv` is the gate's scoreboard)
+- The closing line is taken from the **persisted `rec.close` snapshot** that `fetch-odds` captures in the KO
+  window — read for *every* match incl. started/finished, so a settled bet still gets graded. (The old code only
+  snapshotted `rec.latest` inside an upcoming-only / near-KO window it usually missed → `clv` was null on every
+  settled bet; the gate was un-measurable.)
+- **`clv` = clvProb**, the de-vigged probability move toward your pick (`closingProb − placementProb`) — the
+  rigorous, vig-free metric, consistent across 1X2/AH/totals and across exact vs interpolated closes. `clv_odds`
+  (the intuitive `placement/close − 1` price proxy) is kept **only when a real raw close exists** (exact line);
+  it's null for interpolated lines.
+- **AH/totals line drift:** the bet's exact line is often gone by close (a −1 handicap closes at −1.25/−1.5) and the
+  sharp posts only one line. `interpClose` (in `betting/clv.mjs`, unit-tested) pools a de-vigged P(selection) ladder
+  across **all** closing books and interpolates the fair close at the bet's line; `closing_interp:true` flags it.
+  A line outside the pooled ladder stays null — we don't extrapolate-guess.
 
 ---
 

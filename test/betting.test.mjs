@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { multiplicative, power, shin, betfairMid, devig } from "../betting/devig.mjs";
 import { allMarkets, oneXtwo, overUnder, asianHandicap, btts, scoreDistribution } from "../model/markets.mjs";
 import { matchProbabilities } from "../model/core.mjs";
-import { settleUnits, pnl, modelEV, settle, componentsOf, clv } from "../betting/clv.mjs";
+import { settleUnits, pnl, modelEV, settle, componentsOf, clv, interpClose } from "../betting/clv.mjs";
 
 const sums1 = (a, msg) => assert.ok(Math.abs(a.reduce((s, x) => s + x, 0) - 1) < 1e-9, `${msg} sums to 1`);
 
@@ -122,6 +122,25 @@ test("settle labels and CLV sign", () => {
   // beating the close: you took 2.10, it closed at 1.90 ⇒ positive CLV
   assert.ok(clv({ placementOdds: 2.10, closingOdds: 1.90 }).clvOdds > 0);
   assert.ok(clv({ placementOdds: 1.80, closingOdds: 2.00 }).clvOdds < 0, "worse than close ⇒ negative");
+});
+
+test("interpClose brackets a drifted AH/totals line across pooled books", () => {
+  // Pinnacle posts one line; pool a sharp -1.5 book with a soft -0.75 book to bracket a bet on -1.0.
+  const books = {
+    pin: { spreads: { "-1.5": { home: 1.50, away: 2.55 } } },
+    soft: { spreads: { "-0.75": { home: 2.00, away: 1.83 } } },
+  };
+  const pLo = shin([1.50, 2.55]).probs[1];   // away cover @ -1.5
+  const pHi = shin([2.00, 1.83]).probs[1];   // away cover @ -0.75
+  const r = interpClose(books, "ah", -1.0, "away");
+  assert.ok(r, "should bracket -1.0 between -1.5 and -0.75");
+  const w = (-1.0 - -1.5) / (-0.75 - -1.5);
+  assert.ok(Math.abs(r.prob - (pLo + w * (pHi - pLo))) < 1e-9, "linear interpolation in prob space");
+  assert.ok(Math.abs(r.odds - 1 / r.prob) < 1e-9, "odds is the fair (1/prob) closing price");
+  // an exactly-offered line resolves to that rung; an unbracketable line and non-line markets return null
+  assert.ok(Math.abs(interpClose(books, "ah", -0.75, "away").prob - pHi) < 1e-9);
+  assert.equal(interpClose(books, "ah", -3.0, "away"), null, "outside the ladder ⇒ no extrapolation");
+  assert.equal(interpClose(books, "1x2", 0, "home"), null, "1X2 has no line ladder");
 });
 
 test("allMarkets wires to the model's adjusted lambdas", () => {
